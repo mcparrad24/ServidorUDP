@@ -2,16 +2,14 @@ import socket
 import os
 import logging
 from datetime import datetime
-import hashlib
 import threading
 import time
-import pyshark
 
 # Create a TCP/IP socket
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
 # IP del servidor
-ip=''
+ip='0.0.0.0'
 #Puerto para el socket TCP
 puertoTCP=10000
 server_address = (ip, puertoTCP)
@@ -55,7 +53,7 @@ paquetes = []
 bytes = []
 
 #Nombre log
-LOG_FILENAME = datetime.now().strftime('./Logs/%Y_%m_%d_%H_%M_%S.log')
+LOG_FILENAME = datetime.now().strftime('./LogsServidor/%Y_%m_%d_%H_%M_%S.log')
 
 #Variable para cerrar servidor
 fin = False
@@ -82,6 +80,7 @@ def archivo(num_archivo, c, i, client_address):
     bytes_env = 0
     nombreTamano = f"{nombreArchivo}{SEPARATOR}{tamArchivo}"
     c.send(nombreTamano.encode('ISO-8859-1'))
+    time.sleep(1)
     with open(arch, "rb") as f:
         while True:
             bytes_read = f.read(BUFFER_SIZE)
@@ -95,26 +94,15 @@ def archivo(num_archivo, c, i, client_address):
             udpsock.sendto(bytes_read, (client_address, puerto-i))
             paqs += 1
             bytes_env += BUFFER_SIZE
+            c.send(b'Enviando')
     message = b'Finaliza transmision'
-    udpsock.sendto(message, (client_address, puerto-i))
-    md5(c, arch, i)
-
-#Función de creación y envío de hash
-def md5(connection, fname, i):
-    md5 = hashlib.md5()
-    with open(fname, 'rb') as f:
-        while True:
-            data = f.read(BUFFER_SIZE)
-            if not data:
-                break
-            md5.update(data)
-    connection.send(md5.hexdigest().encode('ISO-8859-1'))
+    c.send(message)
     data = connection.recv(BUFFER_SIZE)
     mensaje2 = data.decode('utf-8')
     exito = 0
-    if ('Los valores son iguales' in mensaje2):
+    if ('Transmision exitosa' in mensaje2):
         exito = 1
-    elif ('Los valores son diferentes' in mensaje2):
+    elif ('Transmision fallida' in mensaje2):
         exito = 0
     exitos.append(exito)
 
@@ -122,6 +110,7 @@ def md5(connection, fname, i):
 def log(filenameF, filesize, exitos, tiempos, paquetes, bytes):
     filename = LOG_FILENAME
     logging.basicConfig(filename = filename, encoding='utf-8', level=logging.INFO)
+    logging.info('LOG SERVIDOR')
     logging.info('Nombre archivo:' + filenameF)
     logging.info('Tamaño archivo:' + str(filesize))
     i = 1
